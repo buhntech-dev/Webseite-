@@ -24,7 +24,7 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <main style="max-width:900px">
 <div class="eyebrow">Live-Audio</div>
 <h1>Website-<span style="color:#75bce8">Sprachkanäle</span></h1>
-<p class="lead">Wähle einen Sprachkanal und tritt ihm zum Zuhören bei. Wenn in Discord ein Alarm mit <b>/alarm</b> ausgelöst wird, hörst du hier zuerst den Alarmton und danach die deutsche Sprachdurchsage.</p>
+<p class="lead">Wähle einen Sprachkanal, tritt bei und sprich direkt über dein Mikrofon mit allen Teilnehmern. Wenn in Discord ein Alarm mit <b>/alarm</b> ausgelöst wird, hörst du hier zuerst den Alarmton und danach die deutsche Sprachdurchsage.</p>
 <section class="panel">
   <div class="channel-actions"><h2>🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
   <div class="channel-list" id="channelList"><div class="empty">Sprachkanäle werden geladen …</div></div>
@@ -38,7 +38,7 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
   <div class="actions"><button id="muteMic" type="button" disabled>Mikrofon stummschalten</button><button id="leaveVoice" type="button" disabled>Sprachkanal verlassen</button></div>
   <div id="remoteAudios"></div>
 
-  <p class="note">Neue Website-Sprachkanäle kannst du in Discord mit <b>/sprachkanal erstellen</b> anlegen. Danach erscheinen sie hier automatisch. Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein.</p>
+  <p class="note">Neue Kanäle können nur Admins mit dem Admin-Schlüssel oben erstellen. Alle Besucher dürfen beitreten und sprechen. Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein.</p>
   <button id="testAudio" class="secondary" type="button" style="margin-top:14px">🔊 Ton testen</button>
 </section>
 <audio id="alarmAudio" preload="auto" src="https://raw.githubusercontent.com/buhntech-dev/Bedarfsmelder-DC/main/assets/alarm.mp3"></audio>
@@ -102,6 +102,7 @@ async function joinChannel(id,name,button){
   activeStream.addEventListener('peer-joined',()=>{});
   activeStream.addEventListener('peer-left',ev=>{const {peerId:gone}=JSON.parse(ev.data);peers.get(gone)?.close();peers.delete(gone);document.getElementById('remote-'+gone)?.remove()});
   activeStream.addEventListener('signal',ev=>{const d=JSON.parse(ev.data);handleSignal(d.from,d.signal).catch(console.error)});
+  activeStream.addEventListener('alarm',ev=>{const d=JSON.parse(ev.data);playAnnouncement(d).catch(console.error)});
   activeButton=button;
   button.onclick=()=>leaveChannel();
 }
