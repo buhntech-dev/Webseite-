@@ -29,7 +29,7 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
   <div class="channel-actions"><h2>🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
   <div class="channel-list" id="channelList"><div class="empty">Sprachkanäle werden geladen …</div></div>
   <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">Noch keinem Sprachkanal beigetreten</span></div>
-  <p class="note">Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein. Beim ersten Beitritt wird die Audioausgabe freigeschaltet.</p>
+  <p class="note">Neue Website-Sprachkanäle kannst du in Discord mit <b>/sprachkanal erstellen</b> anlegen. Danach erscheinen sie hier automatisch. Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein.</p>
   <button id="testAudio" class="secondary" type="button" style="margin-top:14px">🔊 Ton testen</button>
 </section>
 <audio id="alarmAudio" preload="auto" src="https://raw.githubusercontent.com/buhntech-dev/Bedarfsmelder-DC/main/assets/alarm.mp3"></audio>
@@ -74,11 +74,12 @@ async function joinChannel(id,name,button){
 }
 async function playAnnouncement(data){
   const audio=$('alarmAudio');$('voiceText').textContent='🚨 Alarmton läuft …';
-  try{audio.pause();audio.currentTime=0;audio.muted=false;await audio.play();await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;setTimeout(resolve,16000)});}catch(e){console.warn('Alarmton nicht abspielbar',e);}
+  try{audio.pause();audio.currentTime=2;audio.muted=false;audio.volume=1;await audio.play();await new Promise(resolve=>{const stop=()=>{audio.pause();audio.currentTime=15;resolve()};audio.ontimeupdate=()=>{if(audio.currentTime>=15)stop()};audio.onended=resolve;audio.onerror=resolve;setTimeout(stop,13500)});}catch(e){console.warn('Alarmton nicht abspielbar',e);}
   if(!('speechSynthesis' in window)){$('voiceText').textContent='Alarmton abgespielt; Sprachausgabe wird nicht unterstützt.';return}
   window.speechSynthesis.cancel();
   const speech=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
-  speech.lang='de-DE';speech.rate=.92;speech.pitch=.95;speech.volume=1;
+  speech.lang='de-DE';speech.rate=.88;speech.pitch=1;speech.volume=1;
+  const germanVoice=window.speechSynthesis.getVoices().find(v=>/^de(-|_)/i.test(v.lang));if(germanVoice)speech.voice=germanVoice;
   speech.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …'};
   speech.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt'};
   speech.onerror=()=>{$('voiceText').textContent='Sprachdurchsage fehlgeschlagen'};
