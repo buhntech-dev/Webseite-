@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#101722"><title>Bedarfsmelder | Leitstelle</title>
+<meta name="theme-color" content="#101722"><title>Website-Sprachkanäle</title>
 <style>
 :root{color-scheme:dark;--bg:#0b111a;--panel:#121d2a;--line:#26384b;--muted:#91a4b8;--text:#edf4fb;--red:#e34848;--blue:#48a6dc;--green:#48c78e}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -20%,#19334a 0,transparent 42%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,Segoe UI,sans-serif}
@@ -20,80 +20,76 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 @media(max-width:800px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:1fr 1fr}}@media(max-width:480px){header{padding:0 16px}.status span:last-child{display:none}.row{grid-template-columns:1fr}.cards{grid-template-columns:1fr 1fr}main{margin-top:28px}}
 </style></head>
 <body>
-<header><div class="brand"><div class="logo">🚨</div><span>BEDARFSMELDER</span></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Verbindung wird geprüft …</span></div></header>
-<main>
-<div class="eyebrow">Einsatz · Alarmierung · Übersicht</div><h1>Leitstellen-<span style="color:#e96a6a">Dashboard</span></h1>
-<p class="lead">Zentrale Leitstellenoberfläche: Discord löst den Alarm aus, die Website-Sprachkanäle spielen Alarmton und deutsche Sprachdurchsage live für alle verbundenen Nutzer ab.</p>
-<div class="grid">
-<section>
-<div class="cards">
-<div class="metric"><small>Bot-Status</small><strong id="botState">—</strong></div>
-<div class="metric"><small>Alarme gesamt</small><strong id="alarmCount">—</strong></div>
-<div class="metric"><small>Letzter Alarm</small><strong id="lastAlarm" style="font-size:14px">—</strong></div>
-</div>
-<div class="panel"><h2>🚨 Einsatzalarm auslösen</h2>
-<form id="alarmForm">
-<label for="keyword">Einsatzstichwort *</label><input id="keyword" required maxlength="120" placeholder="z. B. B2 – Gebäudebrand">
-<div class="row"><div><label for="zip">Postleitzahl</label><input id="zip" maxlength="12" placeholder="79098"></div><div><label for="address">Einsatzadresse *</label><input id="address" required maxlength="180" placeholder="Straße, Ort"></div></div>
-<label for="report">Meldebild / Lage</label><textarea id="report" maxlength="350" placeholder="Was ist passiert?"></textarea>
-<label for="vehicles">Alarmierte Fahrzeuge</label><input id="vehicles" maxlength="180" placeholder="ELW 1, HLF 20, DLK 23">
-<label for="targetChannel">Alarmkanal auswählen</label><select id="targetChannel" style="width:100%;background:#0b141e;border:1px solid #304458;color:var(--text);border-radius:10px;padding:12px 13px;font:inherit"><option value="">Alle verbundenen Kanäle</option></select><div class="actions"><button class="primary" id="sendAlarm" type="submit">🚨 Alarm auslösen</button><button class="secondary" id="probeAlarm" type="button">🧪 Probealarm</button></div>
-<div class="result" id="result" role="status">Bereit. Vor dem ersten Alarm bitte Bot-Adresse und Webhook-Schlüssel eintragen.</div>
-<p class="note">Nur für berechtigte Leitstellen-Nutzer. Der Schlüssel wird nicht gespeichert und beim Schließen der Seite verworfen.</p>
-</form></div>
+<header><div class="brand"><div class="logo">🔊</div><span>SPRACHKANÄLE</span></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Verbinde …</span></div></header>
+<main style="max-width:900px">
+<div class="eyebrow">Live-Audio</div>
+<h1>Website-<span style="color:#75bce8">Sprachkanäle</span></h1>
+<p class="lead">Wähle einen Sprachkanal und tritt ihm zum Zuhören bei. Wenn in Discord ein Alarm mit <b>/alarm</b> ausgelöst wird, hörst du hier zuerst den Alarmton und danach die deutsche Sprachdurchsage.</p>
+<section class="panel">
+  <div class="channel-actions"><h2>🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
+  <div class="channel-list" id="channelList"><div class="empty">Sprachkanäle werden geladen …</div></div>
+  <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">Noch keinem Sprachkanal beigetreten</span></div>
+  <p class="note">Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein. Beim ersten Beitritt wird die Audioausgabe freigeschaltet.</p>
+  <button id="testAudio" class="secondary" type="button" style="margin-top:14px">🔊 Ton testen</button>
 </section>
-<aside class="panel"><h2>⚙️ Verbindung & System</h2><div class="settings">
-<p>Trage die öffentliche HTTPS-Adresse deines Bedarfsmelder-Bots ein. Der Webhook-Schlüssel muss mit <b>ALARM_WEBHOOK_SECRET</b> in Railway übereinstimmen.</p>
-<label for="apiUrl">Bot-Adresse</label><input id="apiUrl" type="url" value="https://bedarfsmelder-dc-production.up.railway.app" placeholder="https://dein-bot.up.railway.app">
-<label for="secret">Webhook-Schlüssel</label><input id="secret" type="password" autocomplete="off" placeholder="ALARM_WEBHOOK_SECRET">
-<div class="actions"><button id="connect" class="secondary" type="button">Verbindung prüfen</button><button id="preview" type="button">🔊 Alarmton testen</button></div>
-<div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">MP3-Test noch nicht gestartet</span></div>
-<p>Die Liste unten sind die Website-Sprachkanäle. Klicke auf „Beitreten“ und lasse die Seite geöffnet. Wenn du danach in Discord /alarm auslöst, hören alle Nutzer im verbundenen Website-Kanal den Alarmton und anschließend die deutsche Sprachdurchsage. Der Browser muss Ton abspielen dürfen.</p><div class="channel-actions"><h2 style="margin:18px 0 8px">🎙️ Website-Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div><div class="channel-list" id="channelList"><div class="empty">Kanäle werden geladen …</div></div><div class="channel-actions"><h2 style="margin:18px 0 8px">📟 Live-Eingang der Alarmierungen</h2><span class="pill" id="feedUpdated">Wird aktualisiert …</span></div><div class="feed-tools"><input id="alarmSearch" type="search" placeholder="Alarmhistorie durchsuchen …" aria-label="Alarmhistorie durchsuchen"><button id="refreshAlarms" type="button">↻ Neu laden</button></div><div class="feed" id="alarmFeed" aria-live="polite"><div class="empty">Noch keine Alarmierung eingegangen.</div></div>
-<audio id="alarmAudio" preload="none" src="https://raw.githubusercontent.com/buhntech-dev/Bedarfsmelder-DC/main/assets/alarm.mp3"></audio>
-</div></aside>
-</div></main><footer>Bedarfsmelder · Leitstellenoberfläche · Zugriff nur für autorisierte Einsatzkräfte</footer>
+<audio id="alarmAudio" preload="auto" src="https://raw.githubusercontent.com/buhntech-dev/Bedarfsmelder-DC/main/assets/alarm.mp3"></audio>
+</main>
+<footer>Website-Sprachkanäle · Live-Alarmdurchsagen</footer>
 <script>
-const $=id=>document.getElementById(id);let botReady=false;let cachedAlarms=[];let activeWebChannelStream=null;let activeWebChannelId=null;let channelsLoaded=false;
-function base(){return $('apiUrl').value.trim().replace(/\/$/,'')}
-function show(msg,type=''){const el=$('result');el.textContent=msg;el.className='result '+type}
-async function loadChannels(){if(!base())return;try{const r=await fetch(base()+'/api/channels',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Kanäle nicht verfügbar');channelsLoaded=true;const select=$('targetChannel');const keep=select.value;select.innerHTML='<option value="">Alle verbundenen Kanäle</option>';const list=$('channelList');list.innerHTML='';if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle gefunden. Bitte VOICE_CHANNEL_IDS in Railway prüfen.</div>';return}for(const c of d.channels){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.appendChild(option);const item=document.createElement('div');item.className='channel';item.innerHTML='<div><strong>🔊 '+escapeHtml(c.name)+'</strong><br><small class="web-channel-state" id="webstate-'+c.id+'">Nicht beigetreten</small></div><button type="button" class="secondary web-join" data-channel="'+c.id+'">Beitreten</button>';item.querySelector("button").onclick=()=>joinWebChannel(c.id,c.name,item.querySelector("button"));list.appendChild(item)}select.value=keep}catch(e){channelsLoaded=false;$('channelList').innerHTML='<div class="empty">Kanäle konnten nicht geladen werden.</div>'}}
-async function joinWebChannel(channelId,channelName,button){
-  if(activeWebChannelStream){activeWebChannelStream.close();activeWebChannelStream=null;}
-  activeWebChannelId=channelId;
+const API_BASE='https://bedarfsmelder-dc-production.up.railway.app';
+const $=id=>document.getElementById(id);
+let activeStream=null, activeButton=null, activeChannel=null;
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function loadChannels(){
+  const list=$('channelList');list.innerHTML='<div class="empty">Sprachkanäle werden geladen …</div>';
+  try{
+    const r=await fetch(API_BASE+'/api/channels',{cache:'no-store'});
+    const d=await r.json();if(!r.ok)throw Error(d.error||'HTTP '+r.status);
+    list.innerHTML='';
+    if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle eingerichtet.</div>';return}
+    for(const c of d.channels){
+      const item=document.createElement('div');item.className='channel';
+      item.innerHTML='<div><strong>🔊 '+escapeHtml(c.name)+'</strong><br><small id="state-'+c.id+'">Nicht beigetreten</small></div><button class="secondary" type="button">Beitreten</button>';
+      const button=item.querySelector('button');
+      button.onclick=()=>joinChannel(c.id,c.name,button);
+      list.appendChild(item);
+    }
+    $('statusDot').className='dot ok';$('statusText').textContent='Sprachkanäle verfügbar';
+  }catch(e){
+    list.innerHTML='<div class="empty">Sprachkanäle konnten nicht geladen werden. Bitte später erneut versuchen.</div>';
+    $('statusDot').className='dot bad';$('statusText').textContent='Verbindung fehlgeschlagen';
+  }
+}
+async function joinChannel(id,name,button){
+  if(activeStream){activeStream.close();if(activeButton){activeButton.disabled=false;activeButton.textContent='Beitreten';const old=document.getElementById('state-'+activeChannel);if(old)old.textContent='Nicht beigetreten';}}
   const audio=$('alarmAudio');
   try{audio.muted=true;await audio.play();audio.pause();audio.currentTime=0;audio.muted=false;}catch(e){audio.muted=false;}
-  const stream=new EventSource(base()+'/api/stream/'+encodeURIComponent(channelId));
-  activeWebChannelStream=stream;
+  const stream=new EventSource(API_BASE+'/api/stream/'+encodeURIComponent(id));
+  activeStream=stream;activeButton=button;activeChannel=id;
   button.disabled=true;button.textContent='Verbinde …';
-  stream.onopen=()=>{button.disabled=false;button.textContent='Verlassen';$('webstate-'+channelId).textContent='🟢 Du bist im Sprachkanal';$('voiceDot').className='dot ok';$('voiceText').textContent='Verbunden: '+channelName;};
-  stream.onerror=()=>{button.disabled=false;button.textContent='Erneut verbinden';$('webstate-'+channelId).textContent='Verbindung unterbrochen';$('voiceDot').className='dot bad';$('voiceText').textContent='Sprachkanal-Verbindung unterbrochen';};
-  stream.addEventListener('alarm',event=>{let data;try{data=JSON.parse(event.data)}catch(e){return}playWebsiteAnnouncement(data);});
-  button.onclick=()=>{stream.close();activeWebChannelStream=null;activeWebChannelId=null;button.textContent='Beitreten';button.onclick=()=>joinWebChannel(channelId,channelName,button);$('webstate-'+channelId).textContent='Nicht beigetreten';$('voiceDot').className='dot';$('voiceText').textContent='Keinem Sprachkanal beigetreten';};
+  stream.onopen=()=>{button.disabled=false;button.textContent='Verlassen';$('state-'+id).textContent='🟢 Verbunden';$('voiceDot').className='dot ok';$('voiceText').textContent='Du hörst jetzt: '+name;};
+  stream.onerror=()=>{button.disabled=false;button.textContent='Erneut verbinden';$('state-'+id).textContent='Verbindung unterbrochen';$('voiceDot').className='dot bad';$('voiceText').textContent='Verbindung zu '+name+' unterbrochen';};
+  stream.addEventListener('alarm',event=>{let data;try{data=JSON.parse(event.data)}catch(e){return}playAnnouncement(data);});
+  button.onclick=()=>{stream.close();activeStream=null;activeButton=null;activeChannel=null;button.textContent='Beitreten';button.onclick=()=>joinChannel(id,name,button);$('state-'+id).textContent='Nicht beigetreten';$('voiceDot').className='dot';$('voiceText').textContent='Noch keinem Sprachkanal beigetreten';};
 }
-async function playWebsiteAnnouncement(data){
-  const audio=$('alarmAudio');
-  $('voiceText').textContent='🚨 Alarmton wird abgespielt …';
-  try{audio.pause();audio.currentTime=0;audio.muted=false;await audio.play();await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;setTimeout(resolve,15000)});}catch(e){console.warn('[WEB AUDIO] Alarmton konnte nicht abgespielt werden:',e);}
-  if(!('speechSynthesis' in window)){ $('voiceText').textContent='Alarmton abgespielt; Sprachausgabe wird von diesem Browser nicht unterstützt.';return; }
+async function playAnnouncement(data){
+  const audio=$('alarmAudio');$('voiceText').textContent='🚨 Alarmton läuft …';
+  try{audio.pause();audio.currentTime=0;audio.muted=false;await audio.play();await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;setTimeout(resolve,16000)});}catch(e){console.warn('Alarmton nicht abspielbar',e);}
+  if(!('speechSynthesis' in window)){$('voiceText').textContent='Alarmton abgespielt; Sprachausgabe wird nicht unterstützt.';return}
   window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
-  utterance.lang='de-DE';utterance.rate=0.92;utterance.pitch=0.95;utterance.volume=1;
-  utterance.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …';};
-  utterance.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt';};
-  utterance.onerror=()=>{$('voiceText').textContent='Sprachdurchsage konnte nicht abgespielt werden';};
-  window.speechSynthesis.speak(utterance);
+  const speech=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
+  speech.lang='de-DE';speech.rate=.92;speech.pitch=.95;speech.volume=1;
+  speech.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …'};
+  speech.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt'};
+  speech.onerror=()=>{$('voiceText').textContent='Sprachdurchsage fehlgeschlagen'};
+  window.speechSynthesis.speak(speech);
 }
-function renderAlarms(){const q=$('alarmSearch').value.trim().toLocaleLowerCase('de-DE');const rows=cachedAlarms.filter(a=>[a.stichwort,a.plz,a.adresse,a.meldebild,a.source,a.fahrzeuge].join(' ').toLocaleLowerCase('de-DE').includes(q));const feed=$('alarmFeed');if(!rows.length){feed.innerHTML='<div class="empty-state">'+(cachedAlarms.length?'Keine passenden Alarmierungen gefunden.':'Noch keine Alarmierung eingegangen.')+'</div>';return}feed.innerHTML=rows.map(a=>'<article class="alarm-item"><div class="alarm-meta"><small>'+new Date(a.at).toLocaleString('de-DE')+'</small><span class="pill">'+(a.probealarm?'🧪 PROBEALARM':'🚨 EINSATZ')+'</span></div><b>'+escapeHtml(a.stichwort||'Alarmierung')+'</b><div class="alarm-place">'+escapeHtml([a.plz,a.adresse].filter(Boolean).join(' · '))+'</div><div class="alarm-extra">'+escapeHtml(a.meldebild||a.source||'')+'</div>'+(a.fahrzeuge?'<div class="alarm-extra">Fahrzeuge: '+escapeHtml(a.fahrzeuge)+'</div>':'')+'</article>').join('')}\nfunction escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function loadAlarms(){if(!base())return;try{const r=await fetch(base()+'/api/alarms',{cache:'no-store'});const d=await r.json();if(!r.ok)return;cachedAlarms=d.alarms||[];renderAlarms();$('feedUpdated').textContent='Aktualisiert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}catch(e){}}
-async function check(){const url=base();if(!url){$('statusText').textContent='Bot-Adresse fehlt';$('statusDot').className='dot bad';return false}
-try{const r=await fetch(url+'/api/status',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();botReady=!!d.ready;if(!channelsLoaded)await loadChannels();await loadAlarms();$('statusDot').className='dot '+(botReady?'ok':'bad');$('statusText').textContent=botReady?'Bot online':'Bot antwortet, Discord offline';$('botState').textContent=botReady?'ONLINE':'OFFLINE';$('alarmCount').textContent=d.alarmCount??0;$('lastAlarm').textContent=d.lastAlarmAt?new Date(d.lastAlarmAt).toLocaleString('de-DE'):'Noch keiner';return botReady}catch(e){botReady=false;$('statusDot').className='dot bad';$('statusText').textContent='Nicht erreichbar';$('botState').textContent='OFFLINE';return false}}
-$('alarmSearch').addEventListener('input',renderAlarms);$('refreshChannels').onclick=loadChannels;$('refreshAlarms').onclick=loadAlarms;\n$('connect').onclick=async()=>{const ok=await check();show(ok?'Verbindung zum Discord-Bot steht.':'Bot nicht erreichbar oder noch nicht eingeloggt. Prüfe Adresse und CORS-Einstellung. ',ok?'good':'bad')};
-$('alarmForm').onsubmit=async e=>{e.preventDefault();await submitAlarm(false)};
-$('probeAlarm').onclick=()=>submitAlarm(true);
-async function submitAlarm(probe){if(!base()||!$('secret').value){show('Bitte Bot-Adresse und Webhook-Schlüssel eintragen.','bad');return}if(!probe&&!confirm('Einsatzalarm jetzt wirklich auslösen? Der Bot alarmiert den Discord-Sprachkanal und sendet die Meldung in Discord.'))return;
-const btn=$('sendAlarm');btn.disabled=true;show('Alarm wird an den Bot übermittelt …');
-const targetChannel=$('targetChannel').value;const body=probe?{probealarm:true,stichwort:'Webseiten-Probealarm',meldebild:'Manueller Test über die Leitstellen-Webseite',channelId:targetChannel}:{stichwort:$('keyword').value,plz:$('zip').value,adresse:$('address').value,meldebild:$('report').value,fahrzeuge:$('vehicles').value,channelId:targetChannel};
-try{const r=await fetch(base()+'/api/alarm',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+$('secret').value},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'HTTP '+r.status);show('Alarm wurde vom Bot angenommen. Die Verarbeitung im Discord wird gestartet.','good');await check()}catch(e){show('Fehler: '+e.message,'bad')}finally{btn.disabled=false}}
-$('preview').onclick=async()=>{try{$('voiceText').textContent='MP3 wird geladen …';$('voiceDot').className='dot';$('alarmAudio').currentTime=0;await $('alarmAudio').play();$('voiceText').textContent='Alarmton wird im Browser abgespielt';$('voiceDot').className='dot ok';$('alarmAudio').onended=()=>{$('voiceText').textContent='MP3-Test abgeschlossen'}}catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message;$('voiceDot').className='dot bad'}};
-setInterval(check,10000);setInterval(loadAlarms,5000);check();
-</script></body></html>
+$('refreshChannels').onclick=loadChannels;
+$('testAudio').onclick=async()=>{
+  const audio=$('alarmAudio');
+  try{audio.currentTime=0;await audio.play();$('voiceText').textContent='🔊 Testton wird abgespielt';audio.onended=()=>{$('voiceText').textContent=activeChannel?'Du hörst jetzt den Sprachkanal':'Noch keinem Sprachkanal beigetreten'};}
+  catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message;}
+};
+loadChannels();
+</script>
+</body></html>
