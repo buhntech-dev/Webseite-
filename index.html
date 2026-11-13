@@ -59,7 +59,8 @@ async function loadChannels(){
     if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle eingerichtet.</div>';return}
     for(const channel of d.channels){
       const item=document.createElement('div');item.className='channel';
-      item.innerHTML='<div><strong>🔊 '+escapeHtml(channel.name)+'</strong><br><small id="state-'+channel.id+'">Nicht beigetreten</small></div><button class="secondary" type="button">Beitreten</button>';
+      const soundLabel=channel.sound==='theatergong'?'🔔 Neuer Theatergong':'📟 Bisheriger Melderton';
+      item.innerHTML='<div><strong>🔊 '+escapeHtml(channel.name)+'</strong><br><small>'+escapeHtml(channel.description||soundLabel)+'</small><br><small id="state-'+channel.id+'">Nicht beigetreten</small></div><button class="secondary" type="button">Beitreten</button>';
       const button=item.querySelector('button');button.onclick=()=>joinChannel(channel.id,channel.name,button);list.appendChild(item);
     }
     $('statusDot').className='dot ok';$('statusText').textContent='Sprachkanäle verfügbar';
