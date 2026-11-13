@@ -44,7 +44,7 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 </section>
 <aside class="panel"><h2>⚙️ Verbindung & System</h2><div class="settings">
 <p>Trage die öffentliche HTTPS-Adresse deines Bedarfsmelder-Bots ein. Der Webhook-Schlüssel muss mit <b>ALARM_WEBHOOK_SECRET</b> in Railway übereinstimmen.</p>
-<label for="apiUrl">Bot-Adresse</label><input id="apiUrl" type="url" placeholder="https://dein-bot.up.railway.app">
+<label for="apiUrl">Bot-Adresse</label><input id="apiUrl" type="url" value="https://bedarfsmelder-dc-production.up.railway.app" placeholder="https://dein-bot.up.railway.app">
 <label for="secret">Webhook-Schlüssel</label><input id="secret" type="password" autocomplete="off" placeholder="ALARM_WEBHOOK_SECRET">
 <div class="actions"><button id="connect" class="secondary" type="button">Verbindung prüfen</button><button id="preview" type="button">🔊 Alarmton testen</button></div>
 <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">MP3-Test noch nicht gestartet</span></div>
