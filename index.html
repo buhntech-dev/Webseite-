@@ -22,11 +22,11 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <body>
 <header><div class="brand"><div class="logo">🔊</div><span>SPRACHKANÄLE</span></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Verbinde …</span></div></header>
 <main style="max-width:900px">
-<div class="eyebrow">Live-Audio</div>
+<div class="eyebrow">Freiburg V2 · Live-Audio</div>
 <h1>Website-<span style="color:#75bce8">Sprachkanäle</span></h1>
-<p class="lead">Wähle einen Sprachkanal, tritt bei und sprich direkt über dein Mikrofon mit allen Teilnehmern. Wenn in Discord ein Alarm mit <b>/alarm</b> ausgelöst wird, hörst du hier zuerst den Alarmton und danach die deutsche Sprachdurchsage.</p>
+<p class="lead">Die Discord-Sprachkanäle werden hier automatisch angezeigt. Wähle einen Kanal, tritt bei und sprich direkt über dein Mikrofon mit allen Teilnehmern. Wenn in Discord ein Alarm mit <b>/alarm</b> ausgelöst wird, hörst du hier zuerst den Alarmton und danach die deutsche Sprachdurchsage.</p>
 <section class="panel">
-  <div class="channel-actions"><h2>🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
+  <div class="channel-actions"><h2>🎙️ Discord-Sprachkanäle auf der Website</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
   <div class="channel-list" id="channelList"><div class="empty">Sprachkanäle werden geladen …</div></div>
   <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">Noch keinem Sprachkanal beigetreten</span></div>\n  <div class="settings" style="margin:14px 0;padding:14px;background:#0b141e;border:1px solid var(--line);border-radius:12px">
     <b>🔐 Admin: Sprachkanal erstellen</b>
@@ -146,5 +146,6 @@ async function playAnnouncement(data){
 }
 $('testAudio').onclick=async()=>{const a=$('alarmAudio');try{a.currentTime=0;await a.play();$('voiceText').textContent='🔊 Testton wird abgespielt'}catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message}};
 loadChannels();
+setInterval(()=>{if(!activeChannel)loadChannels()},15000);
 </script>
 </body></html>
