@@ -28,7 +28,16 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <section class="panel">
   <div class="channel-actions"><h2>🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div>
   <div class="channel-list" id="channelList"><div class="empty">Sprachkanäle werden geladen …</div></div>
-  <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">Noch keinem Sprachkanal beigetreten</span></div>
+  <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">Noch keinem Sprachkanal beigetreten</span></div>\n  <div class="settings" style="margin:14px 0;padding:14px;background:#0b141e;border:1px solid var(--line);border-radius:12px">
+    <b>🔐 Admin: Sprachkanal erstellen</b>
+    <div class="row"><div><label for="adminSecret">Admin-Schlüssel</label><input id="adminSecret" type="password" placeholder="Admin-Schlüssel"></div><div><label for="newChannelName">Kanalname</label><input id="newChannelName" maxlength="90" placeholder="z. B. Feuerwehr"></div></div>
+    <button id="createChannel" class="primary" type="button" style="margin-top:10px">＋ Kanal erstellen</button>
+    <p>Nur mit Admin-Schlüssel möglich. Der Schlüssel wird serverseitig geprüft.</p>
+  </div>
+  <div class="channel-actions" style="margin-top:12px"><h2>🎧 Mikrofon & Verbindung</h2><span class="pill" id="micState">Mikrofon aus</span></div>
+  <div class="actions"><button id="muteMic" type="button" disabled>Mikrofon stummschalten</button><button id="leaveVoice" type="button" disabled>Sprachkanal verlassen</button></div>
+  <div id="remoteAudios"></div>
+
   <p class="note">Neue Website-Sprachkanäle kannst du in Discord mit <b>/sprachkanal erstellen</b> anlegen. Danach erscheinen sie hier automatisch. Lasse diese Seite geöffnet und schalte den Ton deines Geräts ein.</p>
   <button id="testAudio" class="secondary" type="button" style="margin-top:14px">🔊 Ton testen</button>
 </section>
@@ -38,59 +47,95 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <script>
 const API_BASE='https://bedarfsmelder-dc-production.up.railway.app';
 const $=id=>document.getElementById(id);
-let activeStream=null, activeButton=null, activeChannel=null;
+let activeStream=null, activeButton=null, activeChannel=null, localStream=null, peerId=null, muted=false;
+const peers=new Map();
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function loadChannels(){
   const list=$('channelList');list.innerHTML='<div class="empty">Sprachkanäle werden geladen …</div>';
   try{
-    const r=await fetch(API_BASE+'/api/channels',{cache:'no-store'});
-    const d=await r.json();if(!r.ok)throw Error(d.error||'HTTP '+r.status);
+    const r=await fetch(API_BASE+'/api/channels',{cache:'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||'HTTP '+r.status);
     list.innerHTML='';
     if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle eingerichtet.</div>';return}
-    for(const c of d.channels){
+    for(const channel of d.channels){
       const item=document.createElement('div');item.className='channel';
-      item.innerHTML='<div><strong>🔊 '+escapeHtml(c.name)+'</strong><br><small id="state-'+c.id+'">Nicht beigetreten</small></div><button class="secondary" type="button">Beitreten</button>';
-      const button=item.querySelector('button');
-      button.onclick=()=>joinChannel(c.id,c.name,button);
-      list.appendChild(item);
+      item.innerHTML='<div><strong>🔊 '+escapeHtml(channel.name)+'</strong><br><small id="state-'+channel.id+'">Nicht beigetreten</small></div><button class="secondary" type="button">Beitreten</button>';
+      const button=item.querySelector('button');button.onclick=()=>joinChannel(channel.id,channel.name,button);list.appendChild(item);
     }
     $('statusDot').className='dot ok';$('statusText').textContent='Sprachkanäle verfügbar';
-  }catch(e){
-    list.innerHTML='<div class="empty">Sprachkanäle konnten nicht geladen werden. Bitte später erneut versuchen.</div>';
-    $('statusDot').className='dot bad';$('statusText').textContent='Verbindung fehlgeschlagen';
-  }
+  }catch(e){list.innerHTML='<div class="empty">Sprachkanäle konnten nicht geladen werden.</div>';$('statusDot').className='dot bad';$('statusText').textContent='Verbindung fehlgeschlagen'}
+}
+async function signal(to, payload){
+  await fetch(API_BASE+'/api/voice/'+encodeURIComponent(activeChannel)+'/signal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:peerId,to,signal:payload})});
+}
+async function createPeer(id,makeOffer=false){
+  if(peers.has(id)||!localStream)return;
+  const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+  peers.set(id,pc);localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
+  pc.onicecandidate=e=>{if(e.candidate)signal(id,{candidate:e.candidate.toJSON()}).catch(console.warn)};
+  pc.ontrack=e=>{
+    let audio=document.getElementById('remote-'+id);
+    if(!audio){audio=document.createElement('audio');audio.id='remote-'+id;audio.autoplay=true;audio.playsInline=true;$('remoteAudios').appendChild(audio)}
+    audio.srcObject=e.streams[0];audio.play().catch(()=>{});
+  };
+  pc.onconnectionstatechange=()=>{if(['failed','closed','disconnected'].includes(pc.connectionState))console.log('Sprachverbindung:',pc.connectionState)};
+  if(makeOffer){const offer=await pc.createOffer();await pc.setLocalDescription(offer);await signal(id,{description:pc.localDescription})}
+}
+async function handleSignal(from,payload){
+  await createPeer(from,false);const pc=peers.get(from);if(!pc)return;
+  if(payload.description){
+    await pc.setRemoteDescription(payload.description);
+    if(payload.description.type==='offer'){const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await signal(from,{description:pc.localDescription})}
+  }else if(payload.candidate){try{await pc.addIceCandidate(payload.candidate)}catch(e){console.warn('ICE candidate',e)}}
 }
 async function joinChannel(id,name,button){
-  if(activeStream){activeStream.close();if(activeButton){activeButton.disabled=false;activeButton.textContent='Beitreten';const old=document.getElementById('state-'+activeChannel);if(old)old.textContent='Nicht beigetreten';}}
-  const audio=$('alarmAudio');
-  try{audio.muted=true;await audio.play();audio.pause();audio.currentTime=0;audio.muted=false;}catch(e){audio.muted=false;}
-  const stream=new EventSource(API_BASE+'/api/stream/'+encodeURIComponent(id));
-  activeStream=stream;activeButton=button;activeChannel=id;
-  button.disabled=true;button.textContent='Verbinde …';
-  stream.onopen=()=>{button.disabled=false;button.textContent='Verlassen';$('state-'+id).textContent='🟢 Verbunden';$('voiceDot').className='dot ok';$('voiceText').textContent='Du hörst jetzt: '+name;};
-  stream.onerror=()=>{button.disabled=false;button.textContent='Erneut verbinden';$('state-'+id).textContent='Verbindung unterbrochen';$('voiceDot').className='dot bad';$('voiceText').textContent='Verbindung zu '+name+' unterbrochen';};
-  stream.addEventListener('alarm',event=>{let data;try{data=JSON.parse(event.data)}catch(e){return}playAnnouncement(data);});
-  button.onclick=()=>{stream.close();activeStream=null;activeButton=null;activeChannel=null;button.textContent='Beitreten';button.onclick=()=>joinChannel(id,name,button);$('state-'+id).textContent='Nicht beigetreten';$('voiceDot').className='dot';$('voiceText').textContent='Noch keinem Sprachkanal beigetreten';};
+  if(activeChannel)await leaveChannel();
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    peerId=crypto.randomUUID();
+  }catch(e){$('voiceText').textContent='Mikrofonzugriff verweigert oder nicht verfügbar.';return}
+  activeChannel=id;activeButton=button;button.disabled=true;button.textContent='Verbinde …';
+  const audio=$('alarmAudio');try{audio.muted=true;await audio.play();audio.pause();audio.currentTime=0;audio.muted=false}catch(e){audio.muted=false}
+  activeStream=new EventSource(API_BASE+'/api/stream/'+encodeURIComponent(id)+'?peerId='+encodeURIComponent(peerId));
+  activeStream.onopen=()=>{button.disabled=false;button.textContent='Verlassen';$('state-'+id).textContent='🟢 Verbunden';$('voiceDot').className='dot ok';$('voiceText').textContent='Du bist im Sprachkanal: '+name;$('micState').textContent='🎙️ Mikrofon aktiv';$('muteMic').disabled=false;$('leaveVoice').disabled=false};
+  activeStream.onerror=()=>{$('voiceDot').className='dot bad';$('voiceText').textContent='Verbindung zum Kanal unterbrochen'};
+  activeStream.addEventListener('peer-list',async ev=>{const data=JSON.parse(ev.data);for(const other of data.peers)await createPeer(other,true)});
+  activeStream.addEventListener('peer-joined',()=>{});
+  activeStream.addEventListener('peer-left',ev=>{const {peerId:gone}=JSON.parse(ev.data);peers.get(gone)?.close();peers.delete(gone);document.getElementById('remote-'+gone)?.remove()});
+  activeStream.addEventListener('signal',ev=>{const d=JSON.parse(ev.data);handleSignal(d.from,d.signal).catch(console.error)});
+  activeButton=button;
+  button.onclick=()=>leaveChannel();
 }
+async function leaveChannel(){
+  const oldChannel=activeChannel;activeStream?.close();activeStream=null;
+  for(const pc of peers.values())pc.close();peers.clear();
+  document.querySelectorAll('#remoteAudios audio').forEach(a=>a.remove());
+  localStream?.getTracks().forEach(t=>t.stop());localStream=null;
+  if(activeButton){activeButton.disabled=false;activeButton.textContent='Beitreten';activeButton.onclick=()=>joinChannel(oldChannel,activeButton.parentElement.querySelector('strong').textContent.replace(/^🔊 /,''),activeButton)}
+  const state=document.getElementById('state-'+oldChannel);if(state)state.textContent='Nicht beigetreten';
+  activeChannel=null;activeButton=null;peerId=null;$('voiceDot').className='dot';$('voiceText').textContent='Noch keinem Sprachkanal beigetreten';$('micState').textContent='Mikrofon aus';$('muteMic').disabled=true;$('leaveVoice').disabled=true;$('muteMic').textContent='Mikrofon stummschalten';
+}
+$('muteMic').onclick=()=>{muted=!muted;localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);$('micState').textContent=muted?'🔇 Mikrofon stumm':'🎙️ Mikrofon aktiv';$('muteMic').textContent=muted?'Mikrofon aktivieren':'Mikrofon stummschalten'};
+$('leaveVoice').onclick=leaveChannel;
+$('refreshChannels').onclick=loadChannels;
+$('createChannel').onclick=async()=>{
+  const secret=$('adminSecret').value.trim(),name=$('newChannelName').value.trim();
+  if(!secret||name.length<2){$('voiceText').textContent='Admin-Schlüssel und Kanalname eingeben.';return}
+  const button=$('createChannel');button.disabled=true;
+  try{const r=await fetch(API_BASE+'/api/channels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+secret},body:JSON.stringify({name})});const d=await r.json();if(!r.ok)throw Error(d.error||'Erstellen fehlgeschlagen');$('voiceText').textContent='Kanal '+d.channel.name+' wurde erstellt.';$('newChannelName').value='';await loadChannels()}
+  catch(e){$('voiceText').textContent=e.message}finally{button.disabled=false}
+};
 async function playAnnouncement(data){
   const audio=$('alarmAudio');$('voiceText').textContent='🚨 Alarmton läuft …';
-  try{audio.pause();audio.currentTime=2;audio.muted=false;audio.volume=1;await audio.play();await new Promise(resolve=>{const stop=()=>{audio.pause();audio.currentTime=15;resolve()};audio.ontimeupdate=()=>{if(audio.currentTime>=15)stop()};audio.onended=resolve;audio.onerror=resolve;setTimeout(stop,13500)});}catch(e){console.warn('Alarmton nicht abspielbar',e);}
-  if(!('speechSynthesis' in window)){$('voiceText').textContent='Alarmton abgespielt; Sprachausgabe wird nicht unterstützt.';return}
-  window.speechSynthesis.cancel();
-  const speech=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
+  try{audio.pause();audio.currentTime=2;audio.muted=false;audio.volume=1;await audio.play();await new Promise(resolve=>{let done=false;const stop=()=>{if(done)return;done=true;audio.pause();audio.currentTime=15;resolve()};audio.ontimeupdate=()=>{if(audio.currentTime>=15)stop()};audio.onended=stop;audio.onerror=stop;setTimeout(stop,13500)})}catch(e){console.warn('Alarmton nicht abspielbar',e)}
+  if(!('speechSynthesis'in window))return;
+  speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
   speech.lang='de-DE';speech.rate=.88;speech.pitch=1;speech.volume=1;
-  const germanVoice=window.speechSynthesis.getVoices().find(v=>/^de(-|_)/i.test(v.lang));if(germanVoice)speech.voice=germanVoice;
+  const voice=speechSynthesis.getVoices().find(v=>/^de(-|_)/i.test(v.lang));if(voice)speech.voice=voice;
   speech.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …'};
   speech.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt'};
-  speech.onerror=()=>{$('voiceText').textContent='Sprachdurchsage fehlgeschlagen'};
-  window.speechSynthesis.speak(speech);
+  speechSynthesis.speak(speech);
 }
-$('refreshChannels').onclick=loadChannels;
-$('testAudio').onclick=async()=>{
-  const audio=$('alarmAudio');
-  try{audio.currentTime=0;await audio.play();$('voiceText').textContent='🔊 Testton wird abgespielt';audio.onended=()=>{$('voiceText').textContent=activeChannel?'Du hörst jetzt den Sprachkanal':'Noch keinem Sprachkanal beigetreten'};}
-  catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message;}
-};
+$('testAudio').onclick=async()=>{const a=$('alarmAudio');try{a.currentTime=0;await a.play();$('voiceText').textContent='🔊 Testton wird abgespielt'}catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message}};
 loadChannels();
 </script>
 </body></html>
