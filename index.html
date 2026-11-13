@@ -23,7 +23,7 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <header><div class="brand"><div class="logo">🚨</div><span>BEDARFSMELDER</span></div><div class="status"><i class="dot" id="statusDot"></i><span id="statusText">Verbindung wird geprüft …</span></div></header>
 <main>
 <div class="eyebrow">Einsatz · Alarmierung · Übersicht</div><h1>Leitstellen-<span style="color:#e96a6a">Dashboard</span></h1>
-<p class="lead">Zentrale Leitstellenoberfläche für Probealarme und Einsatzmeldungen – mit Discord-Sprachkanälen, Live-Eingang und automatischer Sprachdurchsage.</p>
+<p class="lead">Zentrale Leitstellenoberfläche: Discord löst den Alarm aus, die Website-Sprachkanäle spielen Alarmton und deutsche Sprachdurchsage live für alle verbundenen Nutzer ab.</p>
 <div class="grid">
 <section>
 <div class="cards">
@@ -48,15 +48,41 @@ footer{max-width:1180px;margin:30px auto 45px;padding:0 22px;color:#64798e;font-
 <label for="secret">Webhook-Schlüssel</label><input id="secret" type="password" autocomplete="off" placeholder="ALARM_WEBHOOK_SECRET">
 <div class="actions"><button id="connect" class="secondary" type="button">Verbindung prüfen</button><button id="preview" type="button">🔊 Alarmton testen</button></div>
 <div class="pill"><i class="dot" id="voiceDot"></i><span id="voiceText">MP3-Test noch nicht gestartet</span></div>
-<p>Der Bot verbindet sich bei einer Alarmierung mit dem gewählten Discord-Sprachkanal. „Alle verbundenen Kanäle“ alarmiert nacheinander alle in Railway eingetragenen Sprachkanäle. Der Browser selbst tritt keinem Discord-Kanal bei.</p><div class="channel-actions"><h2 style="margin:18px 0 8px">🎙️ Verfügbare Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div><div class="channel-list" id="channelList"><div class="empty">Kanäle werden geladen …</div></div><div class="channel-actions"><h2 style="margin:18px 0 8px">📟 Live-Eingang der Alarmierungen</h2><span class="pill" id="feedUpdated">Wird aktualisiert …</span></div><div class="feed-tools"><input id="alarmSearch" type="search" placeholder="Alarmhistorie durchsuchen …" aria-label="Alarmhistorie durchsuchen"><button id="refreshAlarms" type="button">↻ Neu laden</button></div><div class="feed" id="alarmFeed" aria-live="polite"><div class="empty">Noch keine Alarmierung eingegangen.</div></div>
+<p>Die Liste unten sind die Website-Sprachkanäle. Klicke auf „Beitreten“ und lasse die Seite geöffnet. Wenn du danach in Discord /alarm auslöst, hören alle Nutzer im verbundenen Website-Kanal den Alarmton und anschließend die deutsche Sprachdurchsage. Der Browser muss Ton abspielen dürfen.</p><div class="channel-actions"><h2 style="margin:18px 0 8px">🎙️ Website-Sprachkanäle</h2><button id="refreshChannels" type="button">↻ Aktualisieren</button></div><div class="channel-list" id="channelList"><div class="empty">Kanäle werden geladen …</div></div><div class="channel-actions"><h2 style="margin:18px 0 8px">📟 Live-Eingang der Alarmierungen</h2><span class="pill" id="feedUpdated">Wird aktualisiert …</span></div><div class="feed-tools"><input id="alarmSearch" type="search" placeholder="Alarmhistorie durchsuchen …" aria-label="Alarmhistorie durchsuchen"><button id="refreshAlarms" type="button">↻ Neu laden</button></div><div class="feed" id="alarmFeed" aria-live="polite"><div class="empty">Noch keine Alarmierung eingegangen.</div></div>
 <audio id="alarmAudio" preload="none" src="https://raw.githubusercontent.com/buhntech-dev/Bedarfsmelder-DC/main/assets/alarm.mp3"></audio>
 </div></aside>
 </div></main><footer>Bedarfsmelder · Leitstellenoberfläche · Zugriff nur für autorisierte Einsatzkräfte</footer>
 <script>
-const $=id=>document.getElementById(id);let botReady=false;let cachedAlarms=[];
+const $=id=>document.getElementById(id);let botReady=false;let cachedAlarms=[];let activeWebChannelStream=null;let activeWebChannelId=null;
 function base(){return $('apiUrl').value.trim().replace(/\/$/,'')}
 function show(msg,type=''){const el=$('result');el.textContent=msg;el.className='result '+type}
-async function loadChannels(){if(!base())return;try{const r=await fetch(base()+'/api/channels',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Kanäle nicht verfügbar');const select=$('targetChannel');const keep=select.value;select.innerHTML='<option value="">Alle verbundenen Kanäle</option>';const list=$('channelList');list.innerHTML='';if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle gefunden. Bitte VOICE_CHANNEL_IDS in Railway prüfen.</div>';return}for(const c of d.channels){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.appendChild(option);const item=document.createElement('div');item.className='channel';item.innerHTML='<strong>🔊 '+escapeHtml(c.name)+'</strong><small>Bot-Kanal verfügbar</small>';list.appendChild(item)}select.value=keep}catch(e){$('channelList').innerHTML='<div class="empty">Kanäle konnten nicht geladen werden.</div>'}}
+async function loadChannels(){if(!base())return;try{const r=await fetch(base()+'/api/channels',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'Kanäle nicht verfügbar');const select=$('targetChannel');const keep=select.value;select.innerHTML='<option value="">Alle verbundenen Kanäle</option>';const list=$('channelList');list.innerHTML='';if(!d.channels?.length){list.innerHTML='<div class="empty">Keine Sprachkanäle gefunden. Bitte VOICE_CHANNEL_IDS in Railway prüfen.</div>';return}for(const c of d.channels){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.appendChild(option);const item=document.createElement('div');item.className='channel';item.innerHTML='<div><strong>🔊 '+escapeHtml(c.name)+'</strong><br><small class="web-channel-state" id="webstate-'+c.id+'">Nicht beigetreten</small></div><button type="button" class="secondary web-join" data-channel="'+c.id+'">Beitreten</button>';item.querySelector("button").onclick=()=>joinWebChannel(c.id,c.name,item.querySelector("button"));list.appendChild(item)}select.value=keep}catch(e){$('channelList').innerHTML='<div class="empty">Kanäle konnten nicht geladen werden.</div>'}}
+async function joinWebChannel(channelId,channelName,button){
+  if(activeWebChannelStream){activeWebChannelStream.close();activeWebChannelStream=null;}
+  activeWebChannelId=channelId;
+  const audio=$('alarmAudio');
+  try{audio.muted=true;await audio.play();audio.pause();audio.currentTime=0;audio.muted=false;}catch(e){audio.muted=false;}
+  const stream=new EventSource(base()+'/api/stream/'+encodeURIComponent(channelId));
+  activeWebChannelStream=stream;
+  button.disabled=true;button.textContent='Verbinde …';
+  stream.onopen=()=>{button.disabled=false;button.textContent='Verlassen';$('webstate-'+channelId).textContent='🟢 Du bist im Sprachkanal';$('voiceDot').className='dot ok';$('voiceText').textContent='Verbunden: '+channelName;};
+  stream.onerror=()=>{button.disabled=false;button.textContent='Erneut verbinden';$('webstate-'+channelId).textContent='Verbindung unterbrochen';$('voiceDot').className='dot bad';$('voiceText').textContent='Sprachkanal-Verbindung unterbrochen';};
+  stream.addEventListener('alarm',event=>{let data;try{data=JSON.parse(event.data)}catch(e){return}playWebsiteAnnouncement(data);});
+  button.onclick=()=>{stream.close();activeWebChannelStream=null;activeWebChannelId=null;button.textContent='Beitreten';button.onclick=()=>joinWebChannel(channelId,channelName,button);$('webstate-'+channelId).textContent='Nicht beigetreten';$('voiceDot').className='dot';$('voiceText').textContent='Keinem Sprachkanal beigetreten';};
+}
+async function playWebsiteAnnouncement(data){
+  const audio=$('alarmAudio');
+  $('voiceText').textContent='🚨 Alarmton wird abgespielt …';
+  try{audio.pause();audio.currentTime=0;audio.muted=false;await audio.play();await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;setTimeout(resolve,15000)});}catch(e){console.warn('[WEB AUDIO] Alarmton konnte nicht abgespielt werden:',e);}
+  if(!('speechSynthesis' in window)){ $('voiceText').textContent='Alarmton abgespielt; Sprachausgabe wird von diesem Browser nicht unterstützt.';return; }
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(data.announcement||'Alarmierung. Neuer Einsatz.');
+  utterance.lang='de-DE';utterance.rate=0.92;utterance.pitch=0.95;utterance.volume=1;
+  utterance.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …';};
+  utterance.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt';};
+  utterance.onerror=()=>{$('voiceText').textContent='Sprachdurchsage konnte nicht abgespielt werden';};
+  window.speechSynthesis.speak(utterance);
+}
 function renderAlarms(){const q=$('alarmSearch').value.trim().toLocaleLowerCase('de-DE');const rows=cachedAlarms.filter(a=>[a.stichwort,a.plz,a.adresse,a.meldebild,a.source,a.fahrzeuge].join(' ').toLocaleLowerCase('de-DE').includes(q));const feed=$('alarmFeed');if(!rows.length){feed.innerHTML='<div class="empty-state">'+(cachedAlarms.length?'Keine passenden Alarmierungen gefunden.':'Noch keine Alarmierung eingegangen.')+'</div>';return}feed.innerHTML=rows.map(a=>'<article class="alarm-item"><div class="alarm-meta"><small>'+new Date(a.at).toLocaleString('de-DE')+'</small><span class="pill">'+(a.probealarm?'🧪 PROBEALARM':'🚨 EINSATZ')+'</span></div><b>'+escapeHtml(a.stichwort||'Alarmierung')+'</b><div class="alarm-place">'+escapeHtml([a.plz,a.adresse].filter(Boolean).join(' · '))+'</div><div class="alarm-extra">'+escapeHtml(a.meldebild||a.source||'')+'</div>'+(a.fahrzeuge?'<div class="alarm-extra">Fahrzeuge: '+escapeHtml(a.fahrzeuge)+'</div>':'')+'</article>').join('')}\nfunction escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function loadAlarms(){if(!base())return;try{const r=await fetch(base()+'/api/alarms',{cache:'no-store'});const d=await r.json();if(!r.ok)return;cachedAlarms=d.alarms||[];renderAlarms();$('feedUpdated').textContent='Aktualisiert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}catch(e){}}
 async function check(){const url=base();if(!url){$('statusText').textContent='Bot-Adresse fehlt';$('statusDot').className='dot bad';return false}
