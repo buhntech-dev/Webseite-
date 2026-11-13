@@ -141,7 +141,20 @@ async function playAnnouncement(data){
   speech.lang='de-DE';speech.rate=.88;speech.pitch=1;speech.volume=1;
   const voice=speechSynthesis.getVoices().find(v=>/^de(-|_)/i.test(v.lang));if(voice)speech.voice=voice;
   speech.onstart=()=>{$('voiceText').textContent='🗣️ Sprachdurchsage läuft …'};
-  speech.onend=()=>{$('voiceText').textContent='Alarmierung vollständig abgespielt'};
+  speech.onend=async()=>{
+    $('voiceText').textContent='🔔 Sprachdurchsage beendet – Abschlus gong läuft …';
+    try{
+      audio.pause();audio.currentTime=0;audio.volume=1;audio.muted=false;
+      await audio.play();
+      await new Promise(resolve=>{
+        let finished=false;
+        const done=()=>{if(finished)return;finished=true;audio.onended=null;audio.onerror=null;audio.pause();resolve()};
+        audio.onended=done;audio.onerror=done;
+        setTimeout(done,16000);
+      });
+    }catch(error){console.warn('Abschlussgong konnte nicht abgespielt werden:',error)}
+    $('voiceText').textContent='Alarmierung vollständig abgespielt';
+  };
   speechSynthesis.speak(speech);
 }
 $('testAudio').onclick=async()=>{const a=$('alarmAudio');try{a.currentTime=0;await a.play();$('voiceText').textContent='🔊 Testton wird abgespielt'}catch(e){$('voiceText').textContent='Ton konnte nicht abgespielt werden: '+e.message}};
